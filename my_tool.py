@@ -2,46 +2,27 @@
 import sys
 import os
 import re
-import spacy
 
-# Load English NLP model for NER
-nlp = spacy.load("en_core_web_sm")
+# Regex pattern to match "Neither the name of <NAME> nor the"
+pattern = re.compile(r"(Neither the name of )(.+?)( nor the)", re.IGNORECASE)
 
-# Regex pattern for "Neither the name of ... nor the"
-pattern_neither = re.compile(r"(Neither the name of )(.+?)( nor the)", re.IGNORECASE)
-
-def replace_named_entities(text):
+def replace_neither_name(text, default_words=6):
     """
-    Replaces PERSON entities with [[6]] placeholder.
-    Uses regex for 'Neither the name of' pattern and NER as fallback.
+    Replace text between 'Neither the name of' and 'nor the' with [[N]].
     """
-    # First, handle the specific "Neither the name of ..." case
-    text = pattern_neither.sub(r"\1[[6]]\3", text)
-
-    # Then, run NER on the remaining text for generic PERSON replacement
-    doc = nlp(text)
-    new_text = text
-
-    # Replace only PERSON entities, starting from the end to avoid messing up offsets
-    for ent in sorted(doc.ents, key=lambda x: x.start_char, reverse=True):
-        if ent.label_ == "PERSON":
-            new_text = new_text[:ent.start_char] + "[[6]]" + new_text[ent.end_char:]
-
-    return new_text
-
+    return pattern.sub(rf"\1[[{default_words}]]\3", text)
 
 def process_file(file_path):
-    """Read, process, and overwrite a single file."""
+    """Process a single file."""
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    updated_content = replace_named_entities(content)
+    updated_content = replace_neither_name(content)
 
     if updated_content != content:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(updated_content)
         print(f"[TOOL] Updated: {file_path}")
-
 
 def run_tool(target_path):
     """Process a file or all files in a folder recursively."""
